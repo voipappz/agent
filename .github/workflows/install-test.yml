@@ -1,0 +1,64 @@
+# The installer, the way a user runs it, on a fresh machine: install the
+# latest release, fill in the settings, fetch va.yaml from a (stand-in)
+# mothership, start the service, and require the agent to connect to NATS
+# and to FreeSWITCH's Event Socket and to answer /health.
+name: install-test
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      nats:
+        image: nats:2-alpine
+        ports: ["4222:4222"]
+    env:
+      NODE_UUID: 00000000-0000-4000-8000-0000000000c1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stand-in mothership and FreeSWITCH ESL
+        run: |
+          python3 test/fake-mothership.py "$NODE_UUID" ci@example.com 'p$x*^q' 8080 &
+          python3 test/fake-esl.py ClueCon 8021 &
+          sleep 1
+
+      - name: make install (the wizard, answered by the environment as an unattended install is)
+        env:
+          VA_API_URL: http://127.0.0.1:8080
+          VA_API_USER: ci@example.com
+          VA_API_PASSWORD: p$x*^q            # shell-special characters, as real passwords have
+          NODE_NAME: ci-node
+          NATS_URL: nats://127.0.0.1:4222
+          SECRET_KEY: ci-secret-key-0123456789abcdef0123456789abcdef
+        run: make install
+
+      - name: The node was found by name and its va.yaml fetched
+        run: |
+          sudo grep -q "NODE_UUID=$NODE_UUID" /etc/va-agent/agent.env
+          sudo grep -q "$NODE_UUID" /etc/va-agent/va.yaml
+          ! sudo grep -En '^[A-Z_]+=.*REPLACE_WITH' /etc/va-agent/node.env
+
+      - name: The agent connects and answers
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS localhost:4000/health >/dev/null 2>&1 && break; sleep 1
+          done
+          health=$(curl -fsS localhost:4000/health) || { echo "no /health"; exit 1; }
+          echo "health: $health"
+          log=$(sudo journalctl -u va-node --no-pager)
+          echo "$log" | grep -q "NATS: Connected" || { echo "no NATS connection"; exit 1; }
+          echo "$log" | grep -q "FreeSWITCH ESL OK" || { echo "no FreeSWITCH ESL"; exit 1; }
+          systemctl is-active va-node
+          echo "va-agent installed, configured, connected to NATS and FreeSWITCH, healthy"
+
+      - name: The service log, on failure
+        if: failure()
+        run: sudo journalctl -u va-node --no-pager | tail -80
