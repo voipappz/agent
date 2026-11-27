@@ -21,14 +21,15 @@ make install
 ```
 It asks five things and does the rest:
 ```
-1/5  Mothership       Mothership URL [https://connectix.io]:      ← Enter, or your own
+1/5  Mothership       Mothership URL [https://switch.voipappz.io]:  ← Enter, or your own
 2/5  Account          Account email: you@company.com
                       Account password (hidden):
 3/5  This node          1) Staging
                         2) tel1
                       Which node is this box [1]: 2
 4/5  NATS and FreeSWITCH
-                      NATS URL [nats://connectix.io:4222]:         ← Enter, or your own
+                      NATS URL [https://switch.voipappz.io/nats]: ← Enter
+                      NATS token (hidden; Enter if none):
                       FreeSWITCH ESL password [ClueCon]:           ← Enter
 5/5  Mothership secret
                       SECRET_KEY (hidden):                         ← from the mothership's .env
@@ -54,7 +55,7 @@ That is all. Everyday commands:
 
 **Unattended** (no questions): set the answers in the environment.
 ```sh
-VA_API_URL=https://… VA_API_USER=… VA_API_PASSWORD=… NODE_NAME=tel1 NATS_URL=nats://…:4222 SECRET_KEY=… make install
+VA_API_URL=https://… VA_API_USER=… VA_API_PASSWORD=… NODE_NAME=tel1 NATS_TOKEN=… SECRET_KEY=… make install
 ```
 
 ## Good to know

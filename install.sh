@@ -69,12 +69,12 @@ if ! $SUDO test -f "$ETC/node.env"; then
 NODE_NAME=REPLACE_WITH_NODE_NAME
 VA_API_USER=REPLACE_WITH_ACCOUNT_EMAIL
 VA_API_PASSWORD=REPLACE_WITH_ACCOUNT_PASSWORD
-NATS_URL=nats://REPLACE_WITH_NATS_HOST:4222
+NATS_URL=https://default:REPLACE_WITH_NATS_TOKEN@switch.voipappz.io/nats
 
 SECRET_KEY=REPLACE_WITH_MOTHERSHIP_SECRET_KEY
 
 # Optional (defaults shown):
-# API_URL=https://connectix.io
+# API_URL=https://switch.voipappz.io
 # FREESWITCH_HOST=127.0.0.1
 # FREESWITCH_PORT=8021
 # FREESWITCH_PASSWORD=ClueCon
@@ -108,7 +108,7 @@ get() { sed -n "s/^$1=//p" "$ETC/node.env" | tail -1; }
 if grep -Eq '^[A-Z_]+=.*REPLACE_WITH' "$ETC/node.env"; then
   echo "fill in $ETC/node.env first:"; grep -En '^[A-Z_]+=.*REPLACE_WITH' "$ETC/node.env"; exit 1
 fi
-NAME=$(get NODE_NAME); API=$(get API_URL); API=${API:-https://connectix.io}; API=${API%/}
+NAME=$(get NODE_NAME); API=$(get API_URL); API=${API:-https://switch.voipappz.io}; API=${API%/}
 auth() { printf 'user = "%s:%s"\n' "$(get VA_API_USER | sed 's/["\\]/\\&/g')" "$(get VA_API_PASSWORD | sed 's/["\\]/\\&/g')"; }
 
 # the node's uuid, by its name: exactly one node may carry it

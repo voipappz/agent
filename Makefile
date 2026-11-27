@@ -6,7 +6,7 @@ SUDO := $(shell [ "$$(id -u)" = 0 ] || echo sudo)
 help: ## This list
 	@printf '\n\033[1mVoipAppz agent\033[0m   make install, then make status\n\n'
 	@awk 'BEGIN { FS = ":.*## " } /^[a-z][a-z0-9-]*:.*## / { printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
-	@printf '\n  unattended: VA_API_URL VA_API_USER VA_API_PASSWORD NODE_NAME NATS_URL SECRET_KEY make install\n\n'
+	@printf '\n  unattended: VA_API_USER VA_API_PASSWORD NODE_NAME NATS_TOKEN SECRET_KEY make install (VA_API_URL, NATS_URL optional)\n\n'
 
 install: ## The wizard: mothership, account, node, NATS, secret -> installed and running
 	@sh scripts/wizard.sh

@@ -2,13 +2,13 @@
 # make install: the VoipAppz agent, asked for in four questions.
 #
 # Each answer can come from the environment instead (unattended / CI):
-#   VA_API_URL  VA_API_USER  VA_API_PASSWORD  NODE_NAME  NATS_URL  SECRET_KEY  FREESWITCH_PASSWORD
+#   VA_API_URL  VA_API_USER  VA_API_PASSWORD  NODE_NAME  NATS_URL  NATS_TOKEN  SECRET_KEY  FREESWITCH_PASSWORD
 # With no terminal (unattended), defaults are taken without asking.
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
 ETC=/etc/va-agent
-DEFAULT_API=https://connectix.io
+DEFAULT_API=https://switch.voipappz.io
 
 say()  { printf '%s\n' "$*"; }
 step() { printf '\n\033[1m%s\033[0m\n' "$*"; }
@@ -16,10 +16,13 @@ die()  { printf '\n\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 SUDO=""; [ "$(id -u)" = 0 ] || SUDO=sudo
 
 has_tty() { [ -c /dev/tty ] && (: < /dev/tty) 2>/dev/null; }
-# ask "Question" [default] [silent]  -> REPLY
+# ask "Question" [default] [silent] [optional]  -> REPLY
 ask() {
   if ! has_tty; then
-    [ -n "${2:-}" ] && { REPLY=$2; return; }
+    # unattended: a default or an optional answer is fine; anything else must
+    # come from the environment, never a silent loop
+    REPLY=${2:-}
+    [ -n "$REPLY" ] || [ "${4:-}" = optional ] && return
     die "no terminal to ask \"$1\": set it in the environment (see make help)"
   fi
   _st=""
@@ -66,7 +69,18 @@ say "  node: $NAME"
 
 step "4/5  NATS and FreeSWITCH"
 host=${API#*://}; host=${host%%/*}; host=${host%%:*}
-NATS=${NATS_URL:-}; [ -n "$NATS" ] || { ask "NATS URL" "nats://$host:4222"; NATS=$REPLY; }
+# The broker, derived from the mothership as voipappz/installer does: NATS over
+# WebSocket at <mothership>/nats, its token as the URL's credential.
+scheme=${API%%://*}
+NATS=${NATS_URL:-}; [ -n "$NATS" ] || { ask "NATS URL" "$scheme://$host/nats"; NATS=$REPLY; }
+case "$NATS" in *://*@*) ;; *)
+  TOK=${NATS_TOKEN-}
+  if [ -z "${NATS_TOKEN+set}" ]; then ask "NATS token (hidden; Enter if none)" "" silent optional; TOK=$REPLY; fi
+  if [ -n "$TOK" ]; then
+    case "$TOK" in *[!A-Za-z0-9._~-]*) die "the NATS token must be URL-safe (letters, digits, . _ ~ -)" ;; esac
+    NATS="${NATS%%://*}://default:$TOK@${NATS#*://}"
+  fi ;;
+esac
 FSPW=${FREESWITCH_PASSWORD:-}; [ -n "$FSPW" ] || { ask "FreeSWITCH ESL password" "ClueCon" silent; FSPW=$REPLY; }
 
 step "5/5  Mothership secret"
